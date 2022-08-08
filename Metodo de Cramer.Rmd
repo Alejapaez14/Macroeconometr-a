@@ -1,0 +1,151 @@
+---
+title: "Método de Cramer"
+output: html_notebook
+---
+Método de Cramer
+- Media muestral:
+$$
+\bar{Z} = \dfrac{\sum_{t = 1}^{T}{Z_t}}{T}
+$$
+- Varianza muestral:
+$$
+\sigma^{2} = \dfrac{\sum_{t = 1}^{T}{(Z_t - \bar{Z}) ^ 2}}{T - 1}
+$$
+- Auto - covarianza:
+$$
+\gamma_{k} = \dfrac{\sum_{t = 1}^{T}{(Z_t - \bar{Z})(Z_{t + k} - \bar{Z})}}{T - 1}
+$$
+- Auto - correlación:
+$$
+\rho_{k} = \dfrac{\sum_{t = 1}^{T}{(Z_t - \bar{Z})(Z_{t + k} - \bar{Z})}}{\sum_{t = 1}^{T}{(Z_{t} - \bar{Z}) ^ 2}}
+$$
+- Matriz de Phi_kk:
+$$
+\phi_{kk} = \dfrac{
+det\begin{vmatrix}
+1 & \rho_{1} & \rho_{2} & \cdots & \rho_{k - 2} & \rho_{1}\\
+\rho_{1} & 1 & \rho_{1} & \cdots & \rho_{k - 3} & \rho_{2}\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+\rho_{k - 1} & \rho_{k - 2} & \rho_{k - 3} & \cdots & \rho_{1} & \rho_{k}
+\end{vmatrix}
+}{
+det\begin{vmatrix}
+1 & \rho_{1} & \rho_{2} & \cdots & \rho_{k - 2} & \rho_{k - 1}\\
+\rho_{1} & 1 & \rho_{1} & \cdots & \rho_{k - 3} & \rho_{k - 2}\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+\rho_{k-1} & \rho_{k-2} & \rho_{k-3} & \cdots & \rho_{1} & 1
+\end{vmatrix}
+}
+$$
+```{r}
+#Añadir los datos 
+library(readxl)
+data = read_excel("Universidad/Semestre 6/Macroeconometria/inflacion.xlsx")
+head(data)
+
+#Nombrar varibles
+inf <- data$Inflacion
+t <- length(inf)
+T = round(t/4) #Rezago máximo
+```
+
+```{r}
+#Parámetro
+z =  inf
+K = 5
+```
+
+```{r}
+# Estimaciones
+zb =  (sum(X))/t
+sigmat = (sum(X-zb)**2)/(t - 1)
+
+```
+
+```{r}
+#Autocovarianza
+gamma = matrix(data = NA, nrow = (T + 1), ncol = 1)
+for (h in 0:T){
+    gamma[h + 1] = (sum((inf[1:(K - h)]- zb)*(inf[(K + 1): t]-zb)))/(t - 1)
+}
+plot(gamma, type = "l")
+
+ACF = matrix(data=NA, ncol=1, nrow = T)
+for(h in 0:T){
+    ACF[h+1] = gamma[h+1]/gamma[1]
+}
+ACF
+```
+
+
+
+
+```{r}
+#Posibles gráficos
+#Grafica normal
+plot(inf)
+plot(inf, 
+     main="Inflación colombiana: 2001-2018", 
+     type="l",
+     ylab="Inflación",
+     xlab="Mes",
+     font.lab=2,
+     col="orangered",
+     lwd=2)
+#Graficos en series de tiempos 
+infts <- ts(inf, start = c(2001, 1), frequency = 12)
+plot.ts(infts,
+        main="Inflación colombiana: 2001-2018",
+        ylab="%",
+        xlab="Mes",
+        font.lab=2,
+        col="orangered",
+        lwd=2,
+        las=1)
+```
+```{r}
+#Inputs
+k = 12
+``` 
+- Tendencia
+Es un patrón a largo plazo, relativamente suave, exhibido por la serie a través del tiempo. Este se caracteriza por su patrón gradual y consistente que presenta variaciones propias de la serie lo cual es producto de las fuerzas persistentes que afectan el crecimiento o la reducción.  
+```{r}
+#Cálculo de la tendencia 
+tendencia <- matrix(data=NA, ncol=1, nrow=N)
+for(i in (k+1):N){
+  tendencia[i] <- mean(inf[(i-k+1):i])
+}
+plot(tendencia, type="l")
+```
+-Estacionalidad 
+ Es un patrón de la serie que exhibe a intervalos regulares de tiempo dentro del año. Esta asociado con estaciones o movimientos que se dan en los mismos meses año tras año.
+```{r}
+#Cálculo del componente estacional 
+infnt <- inf-tendencia
+
+estac1y <- matrix(data=NA, ncol=1, nrow=k)
+for(i in 1:k){
+  estac1y[i]=mean(inf[seq(from=i, to=floor(N/k)*k, by=k)])
+}
+estac <- matrix(data=estac1y, ncol=1, nrow=N)
+plot(-estac, type="l")
+
+```
+-Componente aleatorio 
+Es el componente resultante de extraer de la serie de tiempo, los 3 componentes anteriores. Estos son factores de corto plazo, imprevisible y no recurrentes que afectan a la serie de tiempo. 
+```{r}
+#Cálculo del componente aleatorio
+rndm <- infnt-estac
+plot(rndm, type="l")
+```
+-Serie de tiempo 
+Conjunto de variables aleatorias indexadas a través del tiempo que miden el mismo fenómeno macroeconómico.
+```{r}
+#Todos los componentes unidos 
+par(mfrow=c(4,1))
+plot(inf, type="l")
+plot(tendencia, type="l")
+plot(estac, type="l")
+plot(rndm, type="l")
+```
+
