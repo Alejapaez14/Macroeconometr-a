@@ -1,0 +1,262 @@
+---
+title: "Quiz B macroeconometria"
+author: "Oscar Troncoso y Alejandra Páez"
+date: "2022-09-10"
+output:
+  html_document: default
+---
+
+## Inputs 
+Son los datos que se utilizaran como base para realizar las operaciones 
+```{r}
+set.seed(1624)
+a = rnorm(511, mean = 0, sd = 1)  #Valores aleatorios simulados
+N = 511
+m = 50/(1+0.2+0.01)               #Media de la serie 
+T = N/4
+R = 15
+```
+
+
+## Ecuación en diferencia y su procedimiento
+
+$$
+Z_{t} = -0.2Z_{t-1}-0.01Z_{t-2}+50+a_{t} 
+\\
+Z_{1} = 0
+\\
+Z_{2} = 1
+\\
+Reescalamiento\thinspace de\thinspace la\thinspace función
+\\
+\bar{Z_{t}} = -0.2\bar{Z_{t-1}}-0.01 \bar{Z_{t-2}}+a_{t}
+$$
+Creación del vector con los valores del proceso dado:
+
+```{r}
+# Punto 2
+Z = matrix(data=NA,nrow = N, ncol = 1)
+Z[1] = 0
+Z[2] = 1 
+for(i in 3:N){
+  Z[i] = -0.2 * (Z[i-1]-m) - 0.01* (Z[i-2]-m)  + a[i]
+}
+```
+
+Punto 3
+
+Hallar los valores teóricos de las autocovarianzas, autocorrelaciones y autocorrelaciones parciales.
+$$
+$$
+
+$$
+Autocovarianzas 
+\\
+\gamma_{0} = 1
+\\
+\gamma_{1} = -0.1980198
+\\
+\gamma_{2} = 0.02960396
+\\
+\gamma_{3} = -0.003666667
+\\
+\gamma_{4} = 0.0007475
+$$
+$$
+Autocorrelaciones
+\\
+\rho_{0} = 1
+\\
+\rho_{1} = -0.2
+\\
+\rho_{2} = -96
+\\
+\rho_{3} = 1940
+\\
+\rho_{4} = -29200
+$$
+
+
+$$
+Autocorrelaciones\thinspace parciales
+\\
+\phi_{0} = 1
+\\
+\phi_{1} = -0.2
+\\
+\phi_{2} = -0.01
+\\
+\phi_{3} = 0
+\\ 
+\phi_{4} = 0
+$$
+$$
+En\thinspace este\thinspace caso\thinspace,\thinspace no\thinspace se\thinspace puede\thinspace realizar\thinspace la\thinspace autocorrelación\thinspace parcial\thinspace de\thinspace orden\thinspace 4\thinspace ,\thinspace es\thinspace decir\thinspace \phi_{4}\thinspace y\thinspace tampoco\thinspace \phi_{3}\thinspace puesto\thinspace que\thinspace al\thinspace ser\thinspace un\thinspace modelo\thinspace AR(2)\thinspace, solo\thinspace tenemos\thinspace \phi_{1}\thinspace y\thinspace \phi_{2}.
+$$
+$$
+$$
+
+## Autocovarianzas, autocorrelaciones y autocorrelaciones parciales 
+
+```{r}
+#Autocovarianzas
+Zb = sum(Z) / N
+Gamma = matrix(data = NA)                               
+for (i in 0 : T){
+  Gamma[i + 1] = sum((Z[1 : (N - i)] - Zb) * (Z[(i + 1) : N] - Zb)) / (N - 1)
+}
+
+#Autocorrelaciones
+Rho = matrix(data = NA, nrow = T , ncol = 1)  
+Rho[1] = 0
+for (i in 2 : T){
+  Rho[i] = Gamma[i] / Gamma[1]
+}
+#Auotcorrelaciones parciales 
+PACF = matrix(data = NA, nrow = T, ncol = 1)                    
+for (k in 1 : T){
+  Den = matrix(data = NA, nrow = k, ncol = k)
+  for(i in 1 : k){
+    for(j in 1 : (k - i + 1)){
+      Den[j, j + i - 1] = Rho[i]
+      Den[j + i - 1, j] = Rho[i]
+    }
+  }
+  Num = Den
+  Num[, k] = Rho[2 : (k + 1)]
+  PACF[k] = det(Num) / det(Den)
+}
+
+
+
+```
+
+
+## Estabilización de varianza 
+
+```{r}
+Xm = matrix(data = Z, nrow = R)
+is.wholenumber <- function(x, tol = .Machine$double.eps^0.5) abs(x - round(x)) < tol
+if (is.wholenumber(N / R) == 'FALSE'){
+  H = floor(N / R)
+  if (N  > (H * R)){
+    l = N - (H * R)
+    Xm[((l + 1) : R), (H + 1)] = NA
+  }
+} else if (is.wholenumber(N / R) == 'TRUE'){
+  H = N / R
+  Xm = matrix(data = Z, nrow = R)
+}
+#Creación del vector de lambdas
+lambdas = c(-2,-1,-0.5, 0, 0.5, 1,2)
+nlambdas = length(lambdas)
+
+#Creación de matrices
+Zb = matrix(data = NA, ncol = H, nrow = 1)
+Zvar = matrix(data = NA, ncol = H, nrow = 1) 
+Xt =  matrix(data = NA, ncol = H, nrow = nlambdas) 
+Ml = matrix(data = NA, nrow = nlambdas, ncol = 4)
+colnames(Ml) = c("Lambda", "M(lambda)","S(lambda)","CV(lambda)")
+Ml[,1] = lambdas
+
+#Calculo de media, varianzas y coeficientes transformados por grupo
+for(h in 1 : H){
+  Zb[h] = mean(Xm[, h])                         #media
+  Zb
+  Zvar[h] = sqrt((sum((Xm[, h] - Zb[h])** 2)) / (R - 1))  #Varianza
+}  
+
+for(l in 1 : nlambdas){
+  for(h in 1 : H){
+    Xt[l, h] = Zvar[h] / (Zb[h] ** (1 - lambdas[l]))
+  }
+}
+
+for(l in 1 : nlambdas){
+  Ml[l,2] = mean(Xt[,l])
+  Ml[l,3] = sqrt((sum((Xt[,l]- Ml[l , 2])**2))/(H-1))
+  Ml[l,4] = Ml [l,3]/ Ml[l,2]
+}
+U.opt = which.min(Ml[,4])
+l.opt = Ml[U.opt,4]
+
+Z = Z**l.opt
+
+
+```
+
+## Estabilización de nivel 
+
+```{r}
+K.Dif = 3
+
+# Matrix con los datos de J
+d = matrix(data = NA, nrow = (K.Dif + 1), ncol = 2)
+colnames(d) = c('J', 'd(J)')
+d[, 1] = seq(0, K.Dif, 1)
+for (i in 1 : K.Dif){
+    # Diferenciación de la serie
+    Z.dif = matrix(data = NA, ncol = 1, nrow = (N - i))
+    Z.dif[, 1] = diff(Z, difference = i)
+
+    # Cálculo de los S(j) diferenciadores (rezagados)
+    d[1, 2] = round(sqrt((1 / (N - 0 - 1)) * sum((Z - sum(Z / (N - 0))) ** 2)), 8)                            # Diferenciación de J = 0
+    d[(i + 1), 2] = round(sqrt((1 / (N - i - 1)) * sum((Z.dif- sum(Z.dif / (N - i))) ** 2)), 8)
+}
+
+# J óptimo (mínimo)
+Opt = which.min(d[, 2])                     # Número en que posición esta el mínimo 
+J_opt = d[Opt, 2]                           # Número de diferencias aplicadas a la serie
+
+d
+d = J_opt 
+d
+```
+
+## ACF de los residuales 
+```{r}
+#Punto 7
+modelillo = arima(Z,c(2,0,0))
+at = modelillo$residuals
+n = length(at)
+K = n/4
+#Cálculo de la ACF  de los residuales 
+pk = matrix(data = NA, nrow = n, ncol = 1)
+for(i in 1:(n-K)){
+  pk[i] = (sum(at[1]*at[i+1]))/sum(at[1]**2)
+}
+
+```
+
+## Box-Pierce
+```{r}
+Q = matrix(data = NA, nrow = K, ncol = 1)
+for(i in 1:K){
+  Q[i] = (sum((pk[i])**2))*(n - d - 1)
+}
+head(Q)
+```
+
+## Ljung - Box
+
+```{r}
+Qd = matrix(data = NA, nrow = K, ncol = 1)
+for(i in 1:K){
+  Qd[i] = (sum(((pk[i])**2)/(n - d - 1 - K)))*(n - d - 1)*(n - d + 1)
+}
+
+VC = qchisq(0.05,df = (K-1))
+
+S = matrix(data =  NA, nrow = K, ncol = 3)
+S[,1] = Qd
+S[,2] = VC
+
+for(i in 1:K){
+  if(VC < Qd[i]){
+    S[,3] = "No hay suficiente  evidencia para rechazar H0 con un alpha 0.05 y 126.75 grados de libertad"
+  }else{
+    S[,3] = "Hay suficiente  evidencia para rechazar H0 con un alpha 0.05 y 126.75 grados de libertad"
+  }
+}
+head(S)
+```
